@@ -29,7 +29,7 @@ Postgres tables on every node.
 
 ## 1. No data transfer on cluster migration
 
-*Status: **Available today** (topology changes) · **In development** (partition rebalancing)*
+*Status: **Available today** (topology changes; on-demand online partition migration) · **In development** (automatic rebalancing policy)*
 
 Row synchronization rides on Postgres's own trigger mechanism, writing
 through the database's native storage — not a proprietary distributed
@@ -50,10 +50,18 @@ configuration change, not a data-shuffling operation.
 rebalance-induced hot spots, degraded-cluster windows, coordinator
 downtime mid-resharding — don't apply the same way here. Lower risk to
 schedule a scaling event during business hours, and lower risk of an
-expansion turning into an incident. Caveat: this is strongest for
-*topology* changes today (adding/removing nodes); selective row placement
-across shard/az groups for true partition-level rebalancing is still in
-development.
+expansion turning into an incident.
+
+This now extends to **partition-level placement**, which the last pass
+listed as in development. A table's placement rule can be rewritten while
+the table is under write load, and the cluster migrates the rows itself:
+the old owner stays the sole committer for the whole move, incoming nodes
+join the fan-out but are held *out of the commit denominator* while they
+fill (so a target still filling can neither stall nor falsify a commit),
+and ownership transfers only once a checksummed range-by-range comparison
+proves the new holder actually has the data — content, not a replication
+position. What remains in development is the *automatic* policy that
+decides when a partition ought to move; moving one on demand works today.
 
 **No hassle on reverse — no vendor lock-in.** Because rows are stored in
 native Postgres tables rather than a proprietary engine, the adoption
@@ -187,7 +195,30 @@ lightweight leader election and cron-style scheduling for recurring jobs.
 Commit-triggered work can route to a python function, a distributed cache
 update, or a distributed queue — all configuration-driven, with no
 separate CDC pipeline, event bus, or FaaS platform to stand up and wire
-together.
+together. These are **server functions in the Lambda / Azure Functions
+sense**, not merely code that happens to run on the server: functions are
+stored, versioned by checksum, bound to a table and a topic, given a
+queue and a priority, and invoked by the event rather than by a caller.
+You deploy a function, not a service — nothing to provision, nothing to
+scale, and no separate deployment that can drift from the schema it
+reads.
+
+**Reach — available today.** That same event path reaches past Postgres
+without asking Postgres to become something else. A commit-triggered
+function can feed **ClickHouse** as an analytical sink, and both cluster
+state and the queues themselves are addressable over a **standard etcd KV
+interface** the cluster exposes on its own RPC port. That last choice is
+deliberately unglamorous and pays for itself: etcd's protocol is already
+spoken by a large amount of existing software, so cluster state and queues
+are reachable without inventing — or asking anyone to adopt — a bespoke
+client, and a queue prefix maps onto a ClickHouse table, so a writer that
+knows only how to put a key can feed the analytical store.
+
+The premise is that **ClickHouse is not transactional, and Postgres is not
+an analytics engine.** Neither is asked to grow the other's capabilities;
+what is built instead is one way to *address* both — an embedded function
+runtime that can reach each, and a standard interface so existing software
+can reach them too.
 
 **Schema migration — partly available, partly in development.** A
 YAML-defined schema+data model merges declaratively into Postgres. What
@@ -235,6 +266,15 @@ the fail-fast default rather than as silent data loss.
 
 None of Greenplum, ClickHouse, or CockroachDB ship a built-in
 "data-change triggers *a function*" layer.
+
+<!-- NOT YET VERIFIED (added 2026-09-21 from the field report): the etcd-surface
+     sentence below is from general knowledge and has not been through a sourced
+     pass like the tables above. Verify before this goes to a customer. -->
+
+Nor does any of them expose an **etcd-compatible KV surface** to
+applications: ClickHouse Keeper speaks the ZooKeeper protocol and exists
+for ClickHouse's own internal coordination, and CockroachDB's KV layer is
+internal with no user-facing etcd API.
 
 <!-- verified 2026-08-05 -->
 
@@ -391,6 +431,123 @@ tables to get parallelism.
 
 ---
 
+## 9. Hierarchical, software-defined topology
+
+*Status: **Available today***
+
+<!-- NOT YET VERIFIED (added 2026-09-21 from the field report): §§9-11 carry no
+     competitor table yet. The capability claims are backed by the lab run in
+     Further reading; the comparative claims still need a sourced pass. -->
+
+The shape of the cluster is **data, not a deployment**. A node carries an
+**availability zone** — a string, nothing more. Zones carry a **tier** —
+an integer, where 0 is the top. Both live in ordinary config rows and
+replicate through the config path that already exists, so there is no
+cluster manifest, no new gossip protocol, and no second source of truth
+about where a node sits. A table then declares its routing rule: which
+zones hold it, which may originate writes to it, and whether it may cross
+tiers upward or downward.
+
+Because the rule is data, changing the shape is a write, and the cluster
+reconciles itself to the new rule while serving traffic (§1) — which is
+what separates *software-defined* from merely configurable.
+
+The rule is enforced at **three** points, not one, because rows arrive by
+routes other than the front door: at party selection (who must
+acknowledge a write), at the leader-side write gate (whether a zone may
+originate it at all), and at apply time on receipt (a record that arrived
+anyway is dropped rather than stored where it must not exist). A rule
+checked only where writes enter is decorative.
+
+**Why it matters — two things, and the second is the scale argument.**
+First, data residency and blast radius become declarative: a zone can be
+declared holder-but-not-writer, and a downward-only rule keeps an edge
+zone's bulk tables from ever climbing into the control-plane tier.
+Second, all-to-all linking is bounded to a **subcluster** — the group of
+nodes that actually share a table's shard and duplicate it for each other.
+Nodes inside a subcluster are fully meshed because they must be; nodes in
+different subclusters have no reason to speak and do not. Levels nest and
+the DBA decides how many, so the ceiling on scale becomes the *subcluster*
+size, which is a design choice, rather than the *cluster* size, which is
+not. A flat cluster is simply the degenerate case: one subcluster,
+all-to-all.
+
+---
+
+## 10. A partition layout an MPP engine can plan against
+
+*Status: **Available today** (the layout surface) · **In development** (engine integration)*
+
+The cluster publishes, for any registered table, the layout an external
+query engine needs in order to split a scan: the key column, the bucket
+boundaries, a row estimate, and the ready-made filter predicate for each
+partition. The boundaries are computed by **equal row count, not equal key
+width** — real primary keys are gappy (deletes, sequence caches, per-node
+allocation ranges), so splitting a key *range* into equal parts yields one
+partition holding everything and several holding nothing.
+
+The intuition most people bring to this is backwards, and it is worth
+stating plainly. On a **sharded** table a partition is a *placement fact*:
+the row lives on one node and the planner has no freedom — and with a
+hash ring built from the live peer set, the same query planned twice can
+slice differently, so it cannot be planned against at all. On a
+**non-sharded** table every holder holds every row, so a partition is a
+*scheduling decision*: any node can take any slice, the partition count is
+independent of the node count, and a node joining or leaving does not
+invalidate a plan. **Redundancy makes parallel query easier, not harder.**
+The surface therefore publishes which strategy a table uses, so an engine
+learns that a table is unplannable by asking rather than by discovering it
+mid-query.
+
+**Why it matters:** parallel analytical query over operational data
+without standing up a separate warehouse, and without the usual bargain
+where going parallel means giving up redundancy. The layout is what a
+best-in-class MPP engine — DataFusion — needs in order to plan against
+the cluster; publishing it is what makes the engine's job possible.
+
+---
+
+## 11. Continuous verification and self-healing
+
+*Status: **Available today***
+
+Scoped replication demands scoped verification. Once rows are placed by
+rule and can move between nodes (§9, §1), *"replication reported success"*
+stops being evidence of anything, because the set of nodes that **should**
+hold a row is itself a moving quantity.
+
+A table is summarised as **frames** — ranges of the primary key, each
+carrying a count and commutative checksums over the rows it covers.
+Commutative on purpose: two nodes never scan in the same physical order.
+The per-row basis is the row's JSON form rather than a text cast, because
+a text cast is column-order dependent and two nodes whose table grew
+columns in a different order would then differ on every row while being
+identical in content. Comparison descends — frames that disagree are split
+until the differing rows are named — and then a vote is taken across the
+holders. A clear majority is repaired from. **A tie is not guessed at:**
+the row is blocked for writes and filed as a critical alert.
+
+Two rules keep the checker from lying about a moving target. A row written
+seconds ago will legitimately differ between nodes, so a verdict is
+deferred both on a *temporal* condition (the row is inside a stabilisation
+window) and on a *structural* one (the cluster itself has not finished
+with it). After repeated deferrals the row is reported as **unverifiable
+under load** — a state distinct from *verified identical* and from *known
+divergent*. Collapsing those three into two is how a checker starts lying.
+A schema gate runs before any checksum, so one added column reports as one
+structural problem rather than burying it under thousands of false data
+problems.
+
+**Why it matters:** this is the same mechanism that gates online partition
+migration in §1 — ownership transfers only when the incoming node can
+*prove* it holds the data — which is why runtime mutation of the topology
+is safe to offer at all. Verification is usually sold as a background
+scrubber you run on Sundays. Under a topology that changes while serving
+traffic it is structural, and a cluster that can rewrite its own shape
+without it is just a faster way to lose data.
+
+---
+
 Together, these are the properties of a distributed system — without
 asking anyone to leave Postgres.
 
@@ -400,10 +557,11 @@ asking anyone to leave Postgres.
 
 **[Where Rows Live](where-rows-live.md)**
 ([hosted copy](https://claude.ai/artifact/A2d8ker1xiNHXMSGQohj8A))
-— a field report on the engineering behind §§1–5 and §7: hierarchical
+— the field report §§1, 5 and 7 and §§9–11 are drawn from: hierarchical
 placement, online partition migration, self-healing verification, the
-partition layout an MPP engine plans against, and schema migration as the
-backbone of CI/CD.
+partition layout an MPP engine plans against, the serverless function
+runtime and etcd-compatible KV interface that reach Postgres and
+ClickHouse, and schema migration as the backbone of CI/CD.
 
 It is written against a six-node lab rather than a slide: 100 live checks,
 nine defects found (none of them by the 231 unit tests), and an honest
