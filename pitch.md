@@ -38,6 +38,7 @@ config tables that reload live. Adding or removing a node is a
 configuration change, not a data-shuffling operation.
 
 <!-- verified 2026-08-05 -->
+
 | Competitor | Cluster expansion / rebalancing reality |
 |---|---|
 | **Greenplum** | Expanding the cluster (`gpexpand`) still physically redistributes data in a two-phase process (segment init, then table redistribution). Docs direct operators to run redistribution "during low-use hours" and allow splitting it "into batches over an extended period" — meaningful load impact, though current docs no longer use the words "read-only". [gpexpand reference](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum/7/greenplum-database/utility_guide-ref-gpexpand.html) |
@@ -62,6 +63,7 @@ left holding a plain, standalone Postgres database — no export step, no
 proprietary-format conversion, no stranded data.
 
 <!-- verified 2026-08-05 -->
+
 | Competitor | What leaving actually takes |
 |---|---|
 | **Greenplum** | Leaving requires `gpbackup`/unload (`COPY ... ON SEGMENT` to per-segment CSV, or GPSS) to get data out of segment storage into a portable format — not just an uninstall. [gpbackup docs](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum-backup-and-restore/1-28/greenplum-backup-and-restore/admin_guide-managing-backup-gpbackup.html) |
@@ -80,6 +82,7 @@ Postgres. Operators run vanilla Postgres binaries — nothing in the core
 engine is patched or forked.
 
 <!-- verified 2026-08-05 -->
+
 | Competitor | Postgres compatibility reality                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 |---|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Greenplum** | Greenplum 7 (released Sept 2023) is based on PostgreSQL 12; current community Postgres is 18 (Postgres 19 due ~Sept/Oct 2026) — a 6-major-version lag, on Greenplum's own release cadence, not community's. [feature summary](https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum/7/greenplum-database/ref_guide-feature_summary.html) · [PostgreSQL 18 release](https://www.postgresql.org/about/news/postgresql-18-released-3142/) |
@@ -110,6 +113,7 @@ backup/reserve failover, not a statically pinned endpoint clients must
 hardcode.
 
 <!-- verified 2026-08-05 -->
+
 | Competitor | Entry-point architecture |
 |---|---|
 | **Citus** | A single coordinator remains the default, explicitly documented as "the single point of failure and the bottleneck of the system." HA still means the customer bolts on Postgres streaming replication + an orchestrator (Patroni, `pg_auto_failover`) themselves — not out of the box. [Patroni 3.0 & Citus](https://www.citusdata.com/blog/2023/03/06/patroni-3-0-and-citus-scalable-ha-postgres/) |
@@ -155,6 +159,7 @@ schema-free participant count *and* per-write transactional commit to
 that set. Each does at most one.
 
 <!-- verified 2026-08-05 -->
+
 | Competitor | Closest mechanism, and where it falls short |
 |---|---|
 | **Greenplum / ClickHouse** | Replication factor and consistency are generally a *cluster- or table-creation-time* topology decision, not a live per-write tunable. |
@@ -232,6 +237,7 @@ None of Greenplum, ClickHouse, or CockroachDB ship a built-in
 "data-change triggers *a function*" layer.
 
 <!-- verified 2026-08-05 -->
+
 | Competitor | What it ships instead |
 |---|---|
 | **CockroachDB** | Native `CREATE CHANGEFEED` CDC (Kafka/webhook/cloud-storage/sinkless sinks) — but a changefeed has no code-execution capability at all, at any point; it emits an event to a sink and stops. That's a different problem (event delivery) from the one this section claims (direct function invocation on commit) — not a partial or weaker version of the same capability. [CREATE CHANGEFEED](https://www.cockroachlabs.com/docs/stable/create-changefeed) |
@@ -239,6 +245,7 @@ None of Greenplum, ClickHouse, or CockroachDB ship a built-in
 | **ClickHouse** | Its newer ClickPipes connectors are inbound CDC *into* ClickHouse from Postgres/MySQL/Mongo, not outbound triggers. |
 
 <!-- verified 2026-08-05 -->
+
 | Competitor | Online DDL reality |
 |---|---|
 | **CockroachDB** | `ALTER TABLE` schema changes run in the background with "no table locking or read/write impact" per current docs. [online schema changes](https://www.cockroachlabs.com/docs/v26.2/online-schema-changes) |
@@ -367,6 +374,7 @@ or conflicting with the other, the way whole-row locking/versioning
 otherwise forces.
 
 <!-- verified 2026-08-05 -->
+
 | Competitor | Document-write granularity |
 |---|---|
 | **Postgres-based** (Greenplum, Citus, EDB PGD) | Postgres itself resolves write conflicts on a JSONB column at the *row* level: it rewrites/locks the whole row on any update, so two transactions editing different keys in the same document still contend for the same row lock and serialize under MVCC, unless the application hand-rolls its own merge logic. [Postgres concurrency](https://devcenter.heroku.com/articles/postgresql-concurrency) |
@@ -390,7 +398,8 @@ asking anyone to leave Postgres.
 
 ## Further reading
 
-**[Where Rows Live](https://claude.ai/code/artifact/491c4287-05f7-4078-a0e6-edcd5d4ee647)**
+**[Where Rows Live](where-rows-live.md)**
+([hosted copy](https://claude.ai/artifact/A2d8ker1xiNHXMSGQohj8A))
 — a field report on the engineering behind §§1–5 and §7: hierarchical
 placement, online partition migration, self-healing verification, the
 partition layout an MPP engine plans against, and schema migration as the
