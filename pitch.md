@@ -174,7 +174,7 @@ table's actual durability needs, not a cluster-wide default.
 
 ## 5. Built-in framework for serverless + schema migration
 
-*Status: **Available today** (serverless) · **In development** (schema migration)*
+*Status: **Available today** (serverless; declarative schema merge and its safety guards) · **In development** (per-node migration execution, secret store)*
 
 **Serverless — available today.** A Postgres row-change trigger can
 directly invoke a python function across the cluster, backed by its own
@@ -184,14 +184,49 @@ update, or a distributed queue — all configuration-driven, with no
 separate CDC pipeline, event bus, or FaaS platform to stand up and wire
 together.
 
-**Schema migration — in development.** A YAML-defined schema+data model
-merges declaratively into Postgres, and the cluster config already
-reserves a slot to track schema-version state cluster-wide. The piece
-still being built is the wire path that would broadcast a schema change
-through the cluster's own leader/consensus mechanism the same way data
-changes propagate — today that still requires an out-of-band tool run by
-each node's operator. Real design, not yet functional — flagged so it
-isn't pitched as shipped.
+**Schema migration — partly available, partly in development.** A
+YAML-defined schema+data model merges declaratively into Postgres. What
+has moved since the last pass: the cluster's schema-version slot is now a
+real table, and the migration tool runs as a **library driven by the
+cluster** rather than a command an operator runs per node.
+
+*Available today:* the declarative merge, the guards described below, and
+one shared information-schema loader used by the cluster's consistency
+gate, the installer and the migration tool alike — verified end to end
+against live PostgreSQL 18, where an incremental migration provably
+preserved a table's primary key.
+
+*In development:* the per-node execution loop that walks the expanded plan,
+and the secret store that credentialled sources will resolve against.
+Design settled and partly built — flagged so it isn't pitched as shipped.
+
+**What makes schema changes safe in a CI/CD pipeline** is that the engine's
+default is to *refuse*, and that the same code path runs in both halves.
+
+*Continuous integration.* `prepare` is `migrate` without the writes — same
+comparison, same guards, nothing applied. That is what makes it a usable
+gate: a dry run down a *different* path proves only that the different
+path works. A version's content is frozen by checksum, so an edited script
+is not a new state of the same version, it is refused. And seven migration
+options each guard a destructive class — index drop, trigger drop, revoke,
+type narrowing among them — every one defaulting to off and raising an
+error that names the table and the exact SQL it declined to run. In a
+pipeline that is a red build on the commit that introduced it: the
+cheapest place to find it.
+
+*Continuous delivery.* The governing rule is that **absence means
+unchanged** — a schema file names what should exist, not the complete
+desired state, so an object present in the database and not mentioned in
+the YAML is left alone. **SchemaGuard generates no DROP for something
+merely absent.** A rolling migration leaves the cluster on a mixed schema
+for its duration, so changes must be backward compatible or the
+application must already handle both shapes; expand/contract is three
+rolls, each individually safe.
+
+That rule is not theoretical. Before it was enforced for primary keys, an
+incremental file adding one column computed the desired primary key as
+empty and read as *remove the primary key* — caught as a build failure by
+the fail-fast default rather than as silent data loss.
 
 None of Greenplum, ClickHouse, or CockroachDB ship a built-in
 "data-change triggers *a function*" layer.
@@ -350,3 +385,21 @@ tables to get parallelism.
 
 Together, these are the properties of a distributed system — without
 asking anyone to leave Postgres.
+
+---
+
+## Further reading
+
+**[Where Rows Live](https://claude.ai/code/artifact/491c4287-05f7-4078-a0e6-edcd5d4ee647)**
+— a field report on the engineering behind §§1–5 and §7: hierarchical
+placement, online partition migration, self-healing verification, the
+partition layout an MPP engine plans against, and schema migration as the
+backbone of CI/CD.
+
+It is written against a six-node lab rather than a slide: 100 live checks,
+nine defects found (none of them by the 231 unit tests), and an honest
+account of what is not done. Two findings there bear directly on the
+claims above — that redundant copies make parallel query *easier* rather
+than harder, which inverts the usual intuition about §7; and that
+continuous *integration* of schema is what makes continuous deployment of
+it boring, which is the §5 argument in full.
