@@ -48,10 +48,9 @@ vendor lock. → [dbinvent.com/cluster](https://dbinvent.com/cluster/)
   redundant, what is local, and how strong each commit has to be.
 
 **It is measured, not asserted.** Against PostgreSQL's own synchronous
-replication to the same two standbys: **388 tps against 227** on a write-only
-load, **1509 against 933** on an 80/20 mix — roughly **1.7x at equal
-replication scope**, on a six-node lab with 100 live checks and 11 scenario
-tests passing.
+replication to the same two standbys: **1.7x the throughput (171%)** on a
+write-only load and **1.6x (162%)** on an 80/20 mix — at equal replication
+scope, on a six-node lab with 100 live checks and 11 scenario tests passing.
 → [What replication actually costs](yaxaha-cluster-performance.md)
 
 ---
