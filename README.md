@@ -32,12 +32,23 @@ failure, and paying for resources that sit idle.
 
 ## YaXaHa — the cluster like in cloud, but better, and yours
 
-Vanilla PostgreSQL plus an extension. No forked engine, no dedicated master, no
-vendor lock. → [dbinvent.com/cluster](https://dbinvent.com/cluster/)
+Vanilla PostgreSQL plus an extension. No forked engine, no dedicated master.
+→ [dbinvent.com/cluster](https://dbinvent.com/cluster/)
 
-- **Strong consistency on write, eventual on read.** The 80/20 split most
-  workloads actually have: always readable, and writes wait only for what
-  correctness requires.
+- **No data transfer.** Your database becomes a cluster node where it already
+  sits — nothing dumped, copied or migrated to get started.
+- **No vendor lock.** Remove the extension and you are back to a single plain
+  PostgreSQL instance, data in place. The way out is documented, not theoretical.
+- **No code change.** Same SQL, same drivers, same extensions — every PostgreSQL
+  feature is still the PostgreSQL feature, because the engine is unmodified.
+
+And the only one of them that arrives with a **built-in DataFusion MPP engine**
+and **Python server functions** — analytics and serverless over the same data,
+without moving it anywhere either.
+
+- **Strong consistency on write, eventual on read.** Tuned for the **Ratio
+  profile pattern** — the 80% read / 20% write shape most workloads actually
+  have: always readable, and writes wait only for what correctness requires.
 - **Virtual dynamic partitioning.** Transaction boundaries are derived at
   runtime, so disjoint writes spread across nodes instead of queueing behind
   each other.
@@ -49,8 +60,9 @@ vendor lock. → [dbinvent.com/cluster](https://dbinvent.com/cluster/)
 
 **It is measured, not asserted.** Against PostgreSQL's own synchronous
 replication to the same two standbys: **1.7x the throughput (171%)** on a
-write-only load and **1.6x (162%)** on an 80/20 mix — at equal replication
-scope, on a six-node lab with 100 live checks and 11 scenario tests passing.
+write-only load and **1.6x (162%)** on the Ratio profile pattern — at equal
+replication scope, on a six-node lab with 100 live checks and 11 scenario
+tests passing.
 → [What replication actually costs](yaxaha-cluster-performance.md)
 
 ---

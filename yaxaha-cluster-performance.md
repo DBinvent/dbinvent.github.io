@@ -23,7 +23,8 @@ Write-only, single client. The base for comparison is PostgreSQL built-in
 | **PostgreSQL sync, 2 standbys**   | **4.41** | **227** | **baseline**                                          |
 | YaXaHa synchronous 2PC            | 18.26 | 55 | **4.1x slower** <br/> *tl;tr*: needs 3+ nodes to beat |
 
-Now the same systems under an 80/20 read/write mix — the realistic shape:
+Now the same systems under the **Ratio profile pattern** — an 80% read / 20%
+write mix, the realistic shape:
 
 | configuration | overall tps | read ms | write ms |
 |---|---|---|---|
@@ -145,7 +146,8 @@ gRPC over HTTP/2 is heavy machinery for talking to a daemon on the same machine.
 **Write-only throughput is the wrong lens.** Turning on replication takes a
 standalone PostgreSQL from 704 to 227 tps, and synchronous cluster commit to 55.
 Those are write-only numbers, and writes are typically around 20% of a real
-workload. Under an 80/20 mix the same systems measure 2360 / 933 / 263 tps.
+workload. Under the Ratio profile pattern the same systems measure
+2360 / 933 / 263 tps.
 
 But the honest version has a second half: 80% of *transactions* being reads is
 not 80% of the *time*. With writes 90× more expensive than reads, writes still
