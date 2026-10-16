@@ -110,6 +110,8 @@ that had to pass before any of it could be believed.
   write. → [article](https://medium.com/@v.krinitsyn/concurrent-document-modification-ea1b6e628e2d)
 
 ---
+[doc](https://claude.ai/artifact/BqBondAkLN2ABQBKrqVj9Z)
+
 
 **More:** [pitch, 4 pages, PDF](DBinvent%20-%20pitch.pdf) ·
 [all articles](https://github.com/vkrinitsyn/vkrinitsyn.github.io?tab=readme-ov-file#articles)
