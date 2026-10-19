@@ -30,7 +30,7 @@ failure, and paying for resources that sit idle.
 
 ---
 
-## YaXaHa — the cluster like in cloud, but better, and yours
+## YT Cluster — the cluster like in cloud, but better, and yours
 
 Vanilla PostgreSQL plus an extension. No forked engine, no dedicated master.
 → [dbinvent.com/cluster](https://dbinvent.com/cluster/)
@@ -58,12 +58,15 @@ without moving it anywhere either.
 - **Synchronization as configuration.** Per-table rules decide what is
   redundant, what is local, and how strong each commit has to be.
 
+From 30 years of personal IT experience into **[30 pillars of the solution](yt-cluster-pillars.md)**
+— everything YT Cluster solves, one line each.
+
 **It is measured, not asserted.** Against PostgreSQL's own synchronous
 replication to the same two standbys: **1.7x the throughput (171%)** on a
 write-only load and **1.6x (162%)** on the Ratio profile pattern — at equal
 replication scope, on a six-node lab with 100 live checks and 11 scenario
 tests passing.
-→ [What replication actually costs](yaxaha-cluster-performance.md)
+→ [What replication actually costs](yt-cluster-performance.md)
 
 ---
 

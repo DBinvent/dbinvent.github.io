@@ -1,10 +1,10 @@
-# What replication actually costs: YaXaHa cluster vs PostgreSQL streaming replication
+# What replication actually costs: YT Cluster vs PostgreSQL streaming replication
 
 Everyone quotes the write-throughput drop when you turn on replication. Almost
 nobody says where the time goes, or what the number looks like under a workload
 that resembles production.
 
-So I profiled a 3-node YaXaHa cluster against PostgreSQL's own synchronous
+So I profiled a 3-node YT Cluster against PostgreSQL's own synchronous
 replication — same hardware, same network, same workload — and instrumented both
 sides until every millisecond was accounted for. Every figure below is measured.
 
@@ -18,20 +18,28 @@ Write-only, single client. The base for comparison is PostgreSQL built-in
 |-----------------------------------|---|---|-------------------------------------------------------|
 | no replication at all (reference) | 1.42 | 704 | 3.1x faster                                           |
 | PostgreSQL **async** replication  | 1.86 | 539 | 2.4x faster                                           |
-| **YaXaHa WAL only eventual**      | **2.58** | **388** | **1.7x faster**                                       |
+| **YT Cluster WAL only eventual**      | **2.58** | **388** | **1.7x faster**                                       |
 | PostgreSQL sync, 1 standby        | 4.03 | 248 | 1.1x faster                                           |
 | **PostgreSQL sync, 2 standbys**   | **4.41** | **227** | **baseline**                                          |
-| YaXaHa synchronous 2PC            | 18.26 | 55 | **4.1x slower** <br/> *tl;tr*: needs 3+ nodes to beat |
+| YT Cluster synchronous 2PC            | 18.26 | 55 | **4.1x slower** <br/> *tl;dr*: needs 3+ nodes to beat |
 
-Now the same systems under the **Ratio profile pattern** — an 80% read / 20%
-write mix, the realistic shape:
+**Why the absolute numbers are low.** 388 tps is not a ceiling of the cluster:
+it is a single client on modest, bare-metal hardware — the origin node runs the
+client, PostgreSQL and the cluster daemon on **one core** of an i5-9400F, the
+peers are 2014-era i7-4790Ks, and the network round trip is 0.75 ms, four to
+eight times a healthy LAN (details under *The hardware is modest*, below). Better hardware lifts every absolute figure; the ratios are the result.
+Linear scaling is a property of the architecture; the 2-to-10-node curve is the
+next measurement.
+
+Now the same systems under an **80/20 read/write mix** — 80% reads, 20% writes,
+the realistic shape:
 
 | configuration | overall tps | read ms | write ms |
 |---|---|---|---|
 | no replication (reference) | 2360 | 0.153 | 1.471 |
-| **YaXaHa WAL only eventual** | **1509** | 0.075 | 2.686 |
+| **YT Cluster WAL only eventual** | **1509** | 0.075 | 2.686 |
 | PostgreSQL sync, 2 standbys | 933 | 0.196 | 4.366 |
-| YaXaHa synchronous 2PC | 263 | 0.179 | 16.134 |
+| YT Cluster synchronous 2PC | 263 | 0.179 | 16.134 |
 
 Reads on a cluster node are effectively free — 0.179 ms with replication against
 0.153 ms without. All configurations were verified convergent: identical data on
@@ -85,7 +93,7 @@ Every table in these runs is configured with sequential consistency **disabled**
 | setting | meaning |
 |---|---|
 | **off (used here)** | ordering between *different* rows is tolerated; no conflict rejection |
-| on | conflicting concurrent writes are rejected outright (SQL 40409) |
+| on | conflicting concurrent writes are rejected outright (SQLSTATE 40001, a retryable serialization failure) |
 
 This is the conservative floor — none of the cluster's opt-in optimisations are
 armed. The figures are a baseline, not a best case.
@@ -146,7 +154,7 @@ gRPC over HTTP/2 is heavy machinery for talking to a daemon on the same machine.
 **Write-only throughput is the wrong lens.** Turning on replication takes a
 standalone PostgreSQL from 704 to 227 tps, and synchronous cluster commit to 55.
 Those are write-only numbers, and writes are typically around 20% of a real
-workload. Under the Ratio profile pattern the same systems measure
+workload. Under an 80/20 read/write mix the same systems measure
 2360 / 933 / 263 tps.
 
 But the honest version has a second half: 80% of *transactions* being reads is

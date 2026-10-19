@@ -6,13 +6,13 @@ Neither store is then asked to be what it isn't. **ClickHouse is not transaction
 
 *Everything below is the argument for that design — what each claim demands in return, and the reliability testing that had to pass before any of it could be believed.*
 
-`YaXaHa cluster · ytserv 0.16 / ytpgc 0.5 · six-node lab · 2026-09-20`
+`YT Cluster · ytserv 0.16 / ytpgc 0.5 · six-node lab · 2026-09-20`
 
 | | |
 |---|---|
 | **100** | live checks all passing |
 | **11** | scenario tests |
-| **231** | unit tests ytserv + yxctl |
+| **231** | unit tests ytserv + ytctl |
 | **9** | defects found none by unit tests |
 | **6** | nodes · 3 zones 2 tiers |
 

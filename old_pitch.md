@@ -29,7 +29,7 @@ No solutions are as simple as RAID or NAS for Database which is a heart of many 
 
 ---
 
-## YaXaHa - The cluster like in cloud, but better and yours
+## YT Cluster - The cluster like in cloud, but better and yours
 
 [https://www.dbinvent.com/cluster/](https://www.dbinvent.com/cluster/) — ready to use **MVP**
 
