@@ -31,7 +31,7 @@ No solutions are as simple as RAID or NAS for Database which is a heart of many 
 
 ## YT Cluster - The cluster like in cloud, but better and yours
 
-[https://www.dbinvent.com/cluster/](https://www.dbinvent.com/cluster/) — ready to use **MVP**
+[https://www.dbinvent.com/cluster/](https://www.dbinvent.com/cluster/) - ready to use **MVP**
 
 ### Strong consistency on write and eventual consistency on read
 Split the performance to a 80% read and 20% write load. Always able to read, but no write until the data become actual.
