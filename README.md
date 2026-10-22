@@ -103,14 +103,27 @@ that had to pass before any of it could be believed.
   anything that already speaks etcd needs no bespoke client - plus a
   [queue](https://github.com/vkrinitsyn/etcd/blob/main/queue.md) with order and
   delivery guarantees.
-- **Schema management - [Schema Guard](https://github.com/vkrinitsyn/schema_guard)
-  and [Rumba RDBM](https://github.com/vkrinitsyn/rdbm).** Declarative *and*
-  imperative, Flyway inspired, tracked by checksum per target environment;
-  migration as the backbone of CI/CD.
-  → [dbinvent.com/rdbm](https://dbinvent.com/rdbm/)
+- **Schema management - [Schema Guard](https://github.com/DBinvent/sge)**, open
+  source (MIT), formerly Rumba RDBM. Declarative *and* imperative, a Flyway
+  replacement with no JVM, tracked by checksum per target environment; migration
+  as the backbone of CI/CD. `apt install schema-guard`, and its declarative
+  library [schema_guard_tokio](https://github.com/vkrinitsyn/schema_guard).
+  → [dbinvent.com/sge](https://dbinvent.com/sge/)
 - **[diff-doc](https://github.com/vkrinitsyn/diff-doc-rs)** - commutative patch
   apply, so two users editing the same JSON row get neither a delay nor a lost
   write. → [article](https://medium.com/@v.krinitsyn/concurrent-document-modification-ea1b6e628e2d)
+
+---
+
+## Formerly YaXAHA
+
+YT Cluster was called **YaXAHA** (YaXAHA Cluster) until October 2026: **Y**et
+**A**nother **XA** **HA** - XA for eXtended Architecture, the X/Open name for a
+distributed two-phase commit, which is how every cluster commit is made, and HA
+for High Availability. The old name may still appear in cached pages, old search
+results and answers from AI models. Everything was renamed with it: the package
+`yaxaha` is now `yt-cluster`, the tool `yxctl` is `ytctl`, and the repository
+DBinvent/yaxaha is now [DBinvent/yt-cluster-tests](https://github.com/DBinvent/yt-cluster-tests).
 
 ---
 [doc](https://claude.ai/artifact/BqBondAkLN2ABQBKrqVj9Z)
