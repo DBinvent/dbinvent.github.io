@@ -10,6 +10,12 @@ at the heart of almost every IT project. Existing answers work, but they are
 expensive, lock you to a vendor, or require downtime and a data transfer - and
 they still leave consistency to chance.
 
+**News, 2026-10-25 - YT Cluster under Jepsen,** the industry standard for data
+consistency testing, very picky and very aggressive by design: 51 findings, every
+one fixed and retested, none critical from the first run on.
+[The findings](https://claude.ai/artifact/Dtu2vx8WUyNm19J8NBjRFH) by severity &middot;
+[the news](https://www.dbinvent.com/news/yt-cluster-under-jepsen)
+
 ---
 
 ## What goes wrong today
@@ -34,6 +40,11 @@ failure, and paying for resources that sit idle.
 
 Vanilla PostgreSQL plus an extension. No forked engine, no dedicated master.
 → [dbinvent.com/cluster](https://dbinvent.com/cluster/)
+
+Install it from apt.dbinvent.com (deb, EL9 rpm, or a tarball of static binaries),
+or run a node as one container - [`dbinvent/yt`](https://hub.docker.com/r/dbinvent/yt),
+PostgreSQL 18 with the extension and ytserv, set up from its environment; three
+nodes with Docker Compose in [Running in Docker](https://www.dbinvent.com/cluster/guide/docker).
 
 - **No data transfer.** Your database becomes a cluster node where it already
   sits - nothing dumped, copied or migrated to get started.
@@ -106,8 +117,9 @@ that had to pass before any of it could be believed.
 - **Schema management - [Schema Guard](https://github.com/DBinvent/sge)**, open
   source (MIT), formerly Rumba RDBM. Declarative *and* imperative, a Flyway
   replacement with no JVM, tracked by checksum per target environment; migration
-  as the backbone of CI/CD. `apt install schema-guard`, and its declarative
-  library [schema_guard_tokio](https://github.com/vkrinitsyn/schema_guard).
+  as the backbone of CI/CD. `apt install schema-guard`, `docker run dbinvent/sge`
+  ([Docker Hub](https://hub.docker.com/r/dbinvent/sge)) or a static binary, and its
+  declarative library [schema_guard_tokio](https://github.com/vkrinitsyn/schema_guard).
   → [dbinvent.com/sge](https://dbinvent.com/sge/)
 - **[diff-doc](https://github.com/vkrinitsyn/diff-doc-rs)** - commutative patch
   apply, so two users editing the same JSON row get neither a delay nor a lost
