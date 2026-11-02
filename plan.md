@@ -1,3 +1,8 @@
+---
+layout: default
+title: Plan before apply
+---
+
 # sge plan: review a migration before it runs
 
 `sge plan` reads the database and your scripts the way `migrate` would, changes nothing, and writes what `migrate` would change as Markdown: per table, the scripts that change it - DDL with its columns, DML with the rows it changes, counted in the database as it is now. Put it in front of a reviewer, and run `migrate` once they approve.

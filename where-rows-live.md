@@ -1,3 +1,8 @@
+---
+layout: default
+title: Where Rows Live
+---
+
 # Where Rows Live
 
 The topology is **software-defined**: replication scope and row placement are rules, rewritten at runtime, with the cluster migrating itself to match - no redeploy, no downtime, no fixed shape. That is what makes one cluster hierarchical and unbounded in scale, and it is precisely the structure a **best-in-class MPP engine - DataFusion** - needs in order to plan against it.

@@ -1,3 +1,8 @@
+---
+layout: default
+title: Pitch
+---
+
 # yt-pgxt
 
 **A Postgres extension that turns ordinary Postgres nodes into a

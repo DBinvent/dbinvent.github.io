@@ -1,3 +1,8 @@
+---
+layout: default
+title: DBinvent
+---
+
 # DBinvent
 
 **_Build your own data source, better than on cloud_**

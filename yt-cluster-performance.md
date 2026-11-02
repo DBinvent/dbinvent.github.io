@@ -1,3 +1,8 @@
+---
+layout: default
+title: YT Cluster vs PostgreSQL streaming replication
+---
+
 # What replication actually costs: YT Cluster vs PostgreSQL streaming replication
 
 Everyone quotes the write-throughput drop when you turn on replication. Almost

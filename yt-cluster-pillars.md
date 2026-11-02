@@ -1,3 +1,8 @@
+---
+layout: default
+title: 30 pillars of YT Cluster
+---
+
 # 30 pillars of YT Cluster
 
 From 30 years of personal IT experience into 30 pillars of the solution: what

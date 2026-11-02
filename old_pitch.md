@@ -1,3 +1,8 @@
+---
+layout: default
+title: Short pitch
+---
+
 # DBinvent
 
 **_Build your own data source, better than on cloud_**
